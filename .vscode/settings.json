@@ -1,0 +1,5 @@
+{
+    "powerquery.client.additionalSymbolsDirectories": [
+        "/mnt/Travail/mobile/Mobile/.vscode/excel-pq-symbols"
+    ]
+}
