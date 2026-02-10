@@ -21,11 +21,9 @@
                     <div class="floating-field" :class="{ 'has-value': reportType }">
                         <select v-model="reportType" id="reportType" class="custom-select">
                             <option value="" disabled hidden></option>
-                            <option value="pothole">Nid de poule</option>
-                            <option value="crack">Fissure routière</option>
-                            <option value="sinkhole">Affaissement</option>
-                            <option value="damaged-surface">Surface endommagée</option>
-                            <option value="other">Autre</option>
+                            <option v-for="t in typesSignalement" :key="t.id" :value="t.id">
+                                {{ t.nom }}
+                            </option>
                         </select>
                         <label for="reportType">Type de problème *</label>
                     </div>
@@ -34,24 +32,19 @@
                     <div class="floating-field" :class="{ 'has-value': company }">
                         <select v-model="company" id="company" class="custom-select">
                             <option value="" disabled hidden></option>
-                            <option value="road-repairs">TANROAD</option>
-                            <option value="construction-pro">Colas Madagascar</option>
-                            <option value="city-works">Madarail</option>
-                            <option value="municipal">Services Municipaux</option>
+                            <option v-for="e in entreprises" :key="e.id" :value="e.id">
+                                {{ e.nom }}
+                            </option>
                         </select>
+
                         <label for="company">Entreprise concernée *</label>
                     </div>
 
-                    <!-- Surface + Budget -->
+                    <!-- Surface -->
                     <div class="input-row">
                         <div class="floating-field" :class="{ 'has-value': surfaceArea }">
                             <input v-model="surfaceArea" type="number" id="surfaceArea" placeholder=" " min="0" />
                             <label for="surfaceArea">Surface affectée (m²) *</label>
-                        </div>
-
-                        <div class="floating-field" :class="{ 'has-value': budget }">
-                            <input v-model="budget" type="number" id="budget" placeholder=" " min="0" />
-                            <label for="budget">Budget estimé (MGA)</label>
                         </div>
                     </div>
 
@@ -152,7 +145,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { resizeAndCompressImage, filesToBase64 } from "@/services/imageService";
-import { creerSignalement } from "@/services/signalementService";
+import { creerSignalement, getAllTypes, getAllEntreprises } from "@/services/signalementService";
 import { useRouter } from 'vue-router'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import {
@@ -181,10 +174,11 @@ import 'leaflet/dist/leaflet.css'
 
 const router = useRouter()
 
+const typesSignalement = ref([])
+const entreprises = ref([])
 const reportType = ref('')
 const company = ref('')
 const surfaceArea = ref('')
-const budget = ref('')
 const description = ref('')
 const selectedLocation = ref(null)
 const photos = ref([])
@@ -270,11 +264,10 @@ const submitReport = async () => {
     const payload = {
       description: description.value,
       surface: Number(surfaceArea.value),
-      budget: budget.value ? Number(budget.value) : undefined,
       latitude: selectedLocation.value.lat,
       longitude: selectedLocation.value.lng,
       entrepriseId: company.value, 
-      typeSignalement: { id: reportType.value, nom: reportType.value } 
+      typeSignalementId: reportType.value 
     }
 
     await creerSignalement(payload, photos.value)
@@ -294,7 +287,10 @@ const submitReport = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async() => {
+    typesSignalement.value = await getAllTypes()
+    entreprises.value = await getAllEntreprises()
+
     setTimeout(() => {
         addMap = L.map('add-map').setView([-18.8792, 47.5074], 12)
 

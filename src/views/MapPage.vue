@@ -16,6 +16,10 @@
                     <ion-button class="header-btn" @click="handleLogout">
                         <ion-icon :icon="logOut" slot="icon-only"></ion-icon>
                     </ion-button>
+                    <ion-button class="header-btn" @click="reloadReports">
+                        <ion-icon :icon="refreshOutline" slot="icon-only"></ion-icon>
+                    </ion-button>
+
                 </ion-buttons>
             </ion-toolbar>
         </ion-header>
@@ -112,6 +116,13 @@
                                 <div class="info-value">{{ selectedMarker.company }}</div>
                             </div>
                         </div>
+                        <div class="info-item full">
+                            <ion-icon :icon="businessOutline" color="primary"></ion-icon>
+                            <div class="info-text">
+                                <div class="info-label">Niveau</div>
+                                <div class="info-value">{{ selectedMarker.niveau }}</div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Section photos -->
@@ -139,7 +150,7 @@ import {
 import {
     shieldCheckmark,
     addCircleOutline, notificationsOutline, filterOutline, closeOutline,
-    logOut
+    logOut,refreshOutline
 } from 'ionicons/icons'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -202,6 +213,39 @@ const getBadgeColor = (status) => {
 const toggleMyReports = () => {
     showMyReports.value = !showMyReports.value
     updateMapMarkers()
+}
+
+const reloadReports = async () => {
+    try {
+        const user = getCurrentUser()
+        const userEmail = user?.email
+
+        const data = await listSignalements()
+
+        reports.value = data.map(r => ({
+            id: r.id,
+            lat: r.geom?.latitude,
+            lng: r.geom?.longitude,
+            date: r.dateCreation?.seconds
+                ? new Date(r.dateCreation.seconds * 1000)
+                : new Date(),
+            status: r.statutActuel?.nom || "Inconnu",
+            surface: r.surface || 0,
+            budget: r.budget || 0,
+            company: r.entreprise?.nom || "Non assignée",
+            photos: (r.photos || []).map(p => {
+                if (!p) return null
+                if (p.startsWith('data:image')) return p
+                return `data:image/jpeg;base64,${p}`
+            }).filter(Boolean),
+            isMine: r.utilisateur?.email === userEmail
+        }))
+
+        updateMapMarkers() // 🔥 met à jour les marqueurs
+    } catch (error) {
+        console.error("Erreur reload:", error)
+        alert("Impossible d’actualiser les données")
+    }
 }
 
 const updateMapMarkers = () => {
@@ -284,7 +328,15 @@ onMounted(async () => {
         surface: r.surface || 0,
         budget: r.budget || 0,
         company: r.entreprise?.nom || "Non assignée",
-        photos: (r.photos || []).map(p => `data:image/jpeg;base64,${p}`),
+        photos: (r.photos || []).map(p => {
+            if (!p) return null
+
+            // Si la photo contient déjà le préfixe base64, on la garde telle quelle
+            if (p.startsWith('data:image')) return p
+
+            // Sinon on ajoute le préfixe
+            return `data:image/jpeg;base64,${p}`
+        }).filter(Boolean),
         isMine: r.utilisateur?.email === userEmail
     }))
 
